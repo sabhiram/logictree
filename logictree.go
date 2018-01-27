@@ -18,46 +18,27 @@ var (
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// TreeMerger is an interface that all nodes and leaves adhere to so we can
+// Tree is an interface that all nodes and leaves adhere to so we can
 // build complicated logic trees.
-type TreeMerger interface {
-	Merge() (string, error)
+type Tree interface {
+	Combine() (string, error)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// A leaf is the evaluate-able expression of which there are 1 or more in a
-// tree.
-type Leaf struct {
-	expression string
-}
-
-func NewLeaf(expr string) *Leaf {
-	return &Leaf{
-		expression: "(" + expr + ")",
-	}
-}
-
-// Merge implements the TreeMerger interface.
-func (l *Leaf) Merge() (string, error) {
-	return l.expression, nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-// Operator defines how leaves are combined in a tree
+// Operator defines how leaves are combined in a tree.
 type Operator int
 
 const (
-	cOperatorAnd = iota
-	cOperatorOr  = iota
+	OperatorAnd = iota
+	OperatorOr  = iota
 )
 
 func (o Operator) String() string {
 	switch o {
-	case cOperatorAnd:
+	case OperatorAnd:
 		return "and"
-	case cOperatorOr:
+	case OperatorOr:
 		return "or"
 	default:
 		panic("invalid operator type")
@@ -80,20 +61,52 @@ func (o Operator) Apply(exprs []string) string {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Node defines the evaluate-able tree.
-type Node struct {
-	leaves []TreeMerger
-	op     Operator
+// Leaf is a node in a tree with no children, and contains an
+// evaluate-by-template string.
+type Leaf struct {
+	expression string
 }
 
-func (n *Node) Merge() (string, error) {
-	if len(n.leaves) == 0 {
+// NewLeaf returns an instance to a leaf wrapped with a scope operator.
+// Possibly overkill.
+func NewLeaf(expr string) *Leaf {
+	return &Leaf{
+		expression: "(" + expr + ")",
+	}
+}
+
+// Combine implements the Tree interface.
+func (l *Leaf) Combine() (string, error) {
+	return l.expression, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Node is the generic node in a tree which combines a bunch of child nodes
+// using it's specific operator.
+type Node struct {
+	op       Operator
+	children []Tree
+}
+
+// NewNode returns a sub-tree which represents the combination of the `op` with
+// the child sub-trees.
+func NewNode(op Operator, cs ...Tree) *Node {
+	return &Node{
+		op:       op,
+		children: cs,
+	}
+}
+
+// Combine is required to satisfy the Tree interface.
+func (n *Node) Combine() (string, error) {
+	if len(n.children) == 0 {
 		return "", ErrEmptyNode
 	}
 
 	exprs := []string{}
-	for _, tm := range n.leaves {
-		e, err := tm.Merge()
+	for _, tm := range n.children {
+		e, err := tm.Combine()
 		if err != nil {
 			return "", err
 		}
@@ -106,12 +119,10 @@ func (n *Node) Merge() (string, error) {
 // GetTemplate squashes the tree down from the root down into a single template
 // expression.
 func (n *Node) GetTemplate() (*template.Template, error) {
-	e, err := n.Merge()
+	e, err := n.Combine()
 	if err != nil {
 		return nil, err
 	}
 
 	return template.Must(template.New("tree").Parse("{{ " + e + " }}")), nil
 }
-
-////////////////////////////////////////////////////////////////////////////////
