@@ -103,12 +103,13 @@ func (n *Node) Combine() (string, error) {
 }
 
 // GetTemplate squashes the tree down from the root down into a single template
-// expression.
-func (n *Node) GetTemplate() (*template.Template, error) {
+// expression.  The only argument is the `template.FuncMap` to use for custom
+// functions.
+func (n *Node) GetTemplate(fm template.FuncMap) (*template.Template, error) {
 	e, err := n.Combine()
 	if err != nil {
 		return nil, err
 	}
 
-	return template.Must(template.New("tree").Parse("{{ " + e + " }}")), nil
+	return template.Must(template.New("tree").Funcs(fm).Parse("{{ " + e + " }}")), nil
 }
