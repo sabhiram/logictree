@@ -10,7 +10,7 @@ go get github.com/sabhiram/logictree
 
 ## Usage
 
-The idea here is to build a tree that represents some arbitrary grouping of logical statements when when injected with template values will evaluate to `true` or `false`.  This is useful for various if-this-then-that-esq scenarios.  Here is one such example:
+The idea here is to build a tree that represents some arbitrary grouping of logical statements, which when executed against a context of values will evaluate to `true` or `false`.  This is useful for various if-this-then-that-esq scenarios.  Here is one such example:
 
 Lets say we want to make a tree so that we can evaluate the following statement in a programmatic fashion:
 "If the price of milk is between 4 and 6 a gallon when the price of onions is between 1 and 2 per pound, or if the price of toothpaste is more than 5; do something!"
@@ -51,18 +51,18 @@ func main() {
 
     // Lets build a sub-tree for the `milk` portion of our statement.
     milkTree := logictree.NewNode(logictree.OperatorAnd,
-        logictree.NewLeaf("ge .Milk 4"),
-        logictree.NewLeaf("le .Milk 6"))
+        logictree.NewLeafNode("ge .Milk 4"),
+        logictree.NewLeafNode("le .Milk 6"))
 
     // Now one for the onions.
     onionTree := logictree.NewNode(logictree.OperatorAnd,
-        logictree.NewLeaf("ge .Onions 1"),
-        logictree.NewLeaf("le .Onions 2"))
+        logictree.NewLeafNode("ge .Onions 1"),
+        logictree.NewLeafNode("le .Onions 2"))
 
     // I think you see how this works, lets build the whole tree!
     tree := logictree.NewNode(logictree.OperatorOr,
         logictree.NewNode(logictree.OperatorAnd, milkTree, onionTree),
-        logictree.NewLeaf("gt .Toothpaste 5"))
+        logictree.NewLeafNode("gt .Toothpaste 5"))
 
     // Here is the expression for the tree before it has been templateized.
     expr, err := tree.Combine()
@@ -99,6 +99,20 @@ func main() {
     buf.Reset()
     t.Execute(&buf, &p)
     fmt.Printf("Result for %#v ==> %v\n", p, buf.String())
+
+    //
+    // Now with JSON powers!
+    // 
+
+    // Write Tree -> JSON
+    bs, err := json.MarshalIndent(tree, "", "  ")
+    fatalOnError(err)
+    fmt.Printf("Tree in JSON:\n%s\n", bs)
+
+    // Read Tree <- JSON
+    newTree := &logictree.Node{}
+    err = json.Unmarshal(bs, &newTree)
+    fatalOnError(err)
 }
 
 ```

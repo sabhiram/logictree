@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -36,23 +37,22 @@ func main() {
 
 	// Lets build a sub-tree for the `milk` portion of our statement.
 	milkTree := logictree.NewNode(logictree.OperatorAnd,
-		logictree.NewLeaf("ge .Milk 4"),
-		logictree.NewLeaf("le .Milk 6"))
+		logictree.NewLeafNode("ge .Milk 4"),
+		logictree.NewLeafNode("le .Milk 6"))
 
 	// Now one for the onions.
 	onionTree := logictree.NewNode(logictree.OperatorAnd,
-		logictree.NewLeaf("ge .Onions 1"),
-		logictree.NewLeaf("le .Onions 2"))
+		logictree.NewLeafNode("ge .Onions 1"),
+		logictree.NewLeafNode("le .Onions 2"))
 
 	// I think you see how this works, lets build the whole tree!
 	tree := logictree.NewNode(logictree.OperatorOr,
 		logictree.NewNode(logictree.OperatorAnd, milkTree, onionTree),
-		logictree.NewLeaf("gt .Toothpaste 5"))
+		logictree.NewLeafNode("gt .Toothpaste 5"))
 
 	// Here is the expression for the tree before it has been templateized.
 	expr, err := tree.Combine()
 	fatalOnError(err)
-
 	fmt.Printf("Tree Expression: \"%s\"\n", expr)
 
 	// Grab the template so we can execute it!
@@ -84,4 +84,14 @@ func main() {
 	buf.Reset()
 	t.Execute(&buf, &p)
 	fmt.Printf("Result for %#v ==> %v\n", p, buf.String())
+
+	// The tree can also be dumped out and stored in JSON.
+	bs, err := json.MarshalIndent(tree, "", "  ")
+	fatalOnError(err)
+	fmt.Printf("Tree in JSON:\n%s\n", bs)
+
+	// And loaded back from it.
+	newTree := &logictree.Node{}
+	err = json.Unmarshal(bs, &newTree)
+	fatalOnError(err)
 }
