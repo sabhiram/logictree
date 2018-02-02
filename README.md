@@ -15,14 +15,13 @@ The `tree` above is composed of nodes and leaves.
 A `Leaf` is a string expression containing a "truthy" statement (evaluates to `true` or `false` when the returned template is executed with a context).
 
 A `Node` is the entity that combines a logical operator with its `children`.  The only supported node types are:
-1. Leaf
-2. And
-3. Or
+1. `Leaf`
+2. `And`
+3. `Or`
 
 ## How it works
 
 When `Combine` is called at any given `Node`, it recurses down the tree and combines all sub-trees into an evaluate-able string.  Alternatively the caller may use the `Node`'s `GetTemplate` method to return a `*template.Template` version of the string which can be executed against various dynamic contexts for filtering, event monitoring and so on.
-
 
 ## Usage
 
@@ -156,26 +155,56 @@ If you would like to express your logic as JSON, the `*Node` is capable of being
     fatalOnError(err)
 ```
 
+Tree in JSON:
+
+```
+{
+  "Op": "or",
+  "Nodes": [
+    {
+      "Op": "and",
+      "Nodes": [
+        {
+          "Op": "and",
+          "Nodes": [
+            {
+              "Op": "leaf",
+              "Leaf": "(ge .Milk 4)"
+            },
+            {
+              "Op": "leaf",
+              "Leaf": "(le .Milk 6)"
+            }
+          ]
+        },
+        {
+          "Op": "and",
+          "Nodes": [
+            {
+              "Op": "leaf",
+              "Leaf": "(ge .Onions 1)"
+            },
+            {
+              "Op": "leaf",
+              "Leaf": "(le .Onions 2)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Op": "leaf",
+      "Leaf": "(gt .Toothpaste 5)"
+    }
+  ]
+}
+```
+
 ## Custom functions for your templates
 
 This is not really a feature of `logictree`, but you can pass a `template.FuncMap` to the `*node.GetTemplate` which allows us to define custom functions.  Here is a simple example where we replace the two `and` trees using a custom `between` function.
 
 ```
-    //
-    //  Define your own operators for the tree by using custom
-    //  `template.FuncMap`s.
-    //
-    mt2 := logictree.NewLeafNode("between .Milk 4 6")
-    ot2 := logictree.NewLeafNode("between .Onions 1 2")
-    tree2 := logictree.NewNode("or",
-        logictree.NewNode("and", mt2, ot2),
-        logictree.NewLeafNode("gt .Toothpaste 5"))
-
-    // Here is the expression for the tree before it has been templateized.
-    expr, err = tree2.Combine()
-    fatalOnError(err)
-    fmt.Printf("Tree2 Expression: \"%s\"\n", expr)
-
     // Since we are using a custom function `between`, teach the template
     // evaluator what it means to use this operator.
     fm := template.FuncMap{
@@ -186,6 +215,18 @@ This is not really a feature of `logictree`, but you can pass a `template.FuncMa
             return "false"
         },
     }
+
+    // Define new leaf nodes using `between`.
+    mt2 := logictree.NewLeafNode("between .Milk 4 6")
+    ot2 := logictree.NewLeafNode("between .Onions 1 2")
+    tree2 := logictree.NewNode("or",
+        logictree.NewNode("and", mt2, ot2),
+        logictree.NewLeafNode("gt .Toothpaste 5"))
+
+    expr, err = tree2.Combine()
+    fatalOnError(err)
+    fmt.Printf("Tree2 Expression: \"%s\"\n", expr)
+
     t2, err := mt2.GetTemplate(fm)
     fatalOnError(err)
 
@@ -195,11 +236,3 @@ This is not really a feature of `logictree`, but you can pass a `template.FuncMa
     fmt.Printf("Result for %#v ==> %v\n", p, buf.String())
 }
 ```
-
-## TODO
-
-1. Better ways to define the `tree` from an external caller.
-2. Other operators? Not all of them will apply to N leaves etc?
-3. Do we want to provide any custom helper functions to aid in the template execution?
-4. How does the caller specify a `FuncMap` for the template?
-5. Ops should be user defined? Call register op?
